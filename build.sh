@@ -28,3 +28,4 @@ print(f'Categories ready: {Category.objects.count()} total')
 "
 
 echo "✓ Build complete!"
+python manage.py migrate --no-input 
