@@ -22,8 +22,9 @@ def env_bool(key, default=False):
 
 SECRET_KEY = env('SECRET_KEY', 'django-insecure-eventbook-change-in-production-xyz123')
 DEBUG = env_bool('DEBUG', True)
-ALLOWED_HOSTS = env('ALLOWED_HOSTS', 'localhost,127.0.0.1,.onrender.com').split(',')
-ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS if h.strip()]
+
+# ── Allow all hosts — handles any Render URL automatically ──
+ALLOWED_HOSTS = ['*']
 
 SITE_NAME = env('SITE_NAME', 'EventBook')
 FRONTEND_URL = env('FRONTEND_URL', 'http://localhost:8000')
@@ -130,7 +131,7 @@ EMAIL_PORT = int(env('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', f'EventBook <noreply@eventbook.ng>')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', 'EventBook <noreply@eventbook.ng>')
 
 # ── Paystack (real transactions) ──
 PAYSTACK_SECRET_KEY = env('PAYSTACK_SECRET_KEY', '')
@@ -141,7 +142,7 @@ PLATFORM_FEE_PERCENT = int(env('PLATFORM_FEE_PERCENT', '5'))
 # ── Security ──
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
