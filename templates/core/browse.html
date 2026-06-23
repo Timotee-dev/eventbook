@@ -1,0 +1,138 @@
+{% extends "core/base.html" %}
+{% block title %}Browse Events{% endblock %}
+{% block content %}
+<div class="container" style="padding:36px 20px 80px">
+  <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:28px">
+    <div style="flex:1">
+      <h1 style="font-family:var(--fd);font-size:26px;font-weight:700;color:#fff">Browse Events</h1>
+      <p id="resultCount" style="color:var(--muted);margin-top:3px;font-size:14px">Loading…</p>
+    </div>
+    <div class="search-wrap" style="max-width:320px;width:100%">
+      <input type="text" id="searchInput" placeholder="Search…">
+      <button onclick="go()">Go</button>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:200px 1fr;gap:24px;align-items:start" id="browseGrid">
+    <aside class="glass" style="position:sticky;top:78px;padding:20px">
+      <h3 style="font-family:var(--fd);font-size:14px;color:#fff;margin-bottom:14px">Filters</h3>
+      <div class="form-group"><label class="label">Category</label><select class="select" id="fCat"><option value="">All</option></select></div>
+      <div class="form-group"><label class="label">City</label><input type="text" class="input" id="fCity" placeholder="Lagos"></div>
+      <div class="form-group"><label class="label">Min Price ₦</label><input type="number" class="input" id="fMin" placeholder="0"></div>
+      <div class="form-group"><label class="label">Max Price ₦</label><input type="number" class="input" id="fMax" placeholder="Any"></div>
+      <div class="form-group"><label class="label">Date From</label><input type="date" class="input" id="fFrom"></div>
+      <div class="form-group"><label class="label">Date To</label><input type="date" class="input" id="fTo"></div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:14px;color:var(--muted)"><input type="checkbox" id="fFree" style="accent-color:var(--violet)"> Free only</label>
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:14px;color:var(--muted)"><input type="checkbox" id="fOnline" style="accent-color:var(--violet)"> Online events</label>
+      </div>
+      <button class="btn btn-primary btn-full btn-sm" onclick="go()">Apply</button>
+      <button class="btn btn-ghost btn-full btn-sm" style="margin-top:6px" onclick="clearFilters()">Clear</button>
+    </aside>
+
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <select class="select" id="sortBy" style="width:auto;padding:8px 12px;font-size:13px" onchange="go()">
+          <option value="start_datetime">Soonest first</option>
+          <option value="-start_datetime">Latest first</option>
+          <option value="base_price">Price ↑</option>
+          <option value="-base_price">Price ↓</option>
+          <option value="-view_count">Most popular</option>
+        </select>
+      </div>
+      <div class="grid" id="resultsGrid"></div>
+      <div style="display:flex;gap:6px;justify-content:center;margin-top:32px" id="pagination"></div>
+    </div>
+  </div>
+</div>
+
+<style>@media(max-width:700px){#browseGrid{grid-template-columns:1fr!important}#browseGrid>aside{position:static!important}}</style>
+{% endblock %}
+{% block extra_js %}
+<script>
+let page = 1;
+const P = new URLSearchParams(location.search);
+if (P.get('q')) document.getElementById('searchInput').value = P.get('q');
+if (P.get('category')) document.getElementById('fCat').value = P.get('category');
+if (P.get('is_online')==='true') document.getElementById('fOnline').checked = true;
+
+async function boot() {
+  const {data} = await api.get('/api/events/categories/');
+  const cats = data?.results || data || [];
+  const sel = document.getElementById('fCat');
+  cats.forEach(c => {
+    const o = document.createElement('option');
+    o.value=c.slug; o.textContent=c.name;
+    if (P.get('category')===c.slug) o.selected=true;
+    sel.appendChild(o);
+  });
+  load(1);
+}
+
+function params(pg=1) {
+  const p = new URLSearchParams({page:pg,page_size:12,sort:document.getElementById('sortBy').value});
+  const q=document.getElementById('searchInput').value.trim();
+  const city=document.getElementById('fCity').value.trim();
+  const cat=document.getElementById('fCat').value;
+  const min=document.getElementById('fMin').value;
+  const max=document.getElementById('fMax').value;
+  const from=document.getElementById('fFrom').value;
+  const to=document.getElementById('fTo').value;
+  if(q)   p.set('q',q);
+  if(city)p.set('city',city);
+  if(cat) p.set('category',cat);
+  if(min) p.set('min_price',min);
+  if(max) p.set('max_price',max);
+  if(from)p.set('date_from',from);
+  if(to)  p.set('date_to',to);
+  if(document.getElementById('fFree').checked)   p.set('is_free','true');
+  if(document.getElementById('fOnline').checked) p.set('is_online','true');
+  return p;
+}
+
+async function load(pg=1) {
+  page=pg;
+  const grid = document.getElementById('resultsGrid');
+  grid.innerHTML = skeletons();
+  const {data,ok} = await api.get('/api/events/?'+params(pg));
+  if(!ok){ grid.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-icon">⚠</div><h3>Failed to load</h3></div>'; return; }
+  const arr = data?.results||[];
+  const count = data?.count||0;
+  document.getElementById('resultCount').textContent = `${count} event${count!==1?'s':''} found`;
+  grid.innerHTML = arr.length ? arr.map(renderCard).join('') : '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">◈</div><h3>No events found</h3><p>Try different filters.</p></div>';
+  initChips();
+  buildPager(pg, count);
+}
+
+function go(){ load(1); }
+
+function clearFilters(){
+  ['searchInput','fCity','fMin','fMax','fFrom','fTo'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fFree').checked=false;
+  document.getElementById('fOnline').checked=false;
+  document.getElementById('fCat').value='';
+  go();
+}
+
+function buildPager(pg, total) {
+  const pages = Math.ceil(total/12);
+  const el = document.getElementById('pagination');
+  el.innerHTML='';
+  if(pages<=1)return;
+  const add=(label,p,active,disabled)=>{
+    const btn=document.createElement('button');
+    btn.className='btn btn-outline btn-sm'+(active?' btn-primary':'');
+    btn.textContent=label; btn.disabled=disabled;
+    btn.style.minWidth='38px';
+    btn.onclick=()=>{ load(p); scrollTo(0,0); };
+    el.appendChild(btn);
+  };
+  add('‹',pg-1,false,pg===1);
+  for(let i=Math.max(1,pg-2);i<=Math.min(pages,pg+2);i++) add(i,i,i===pg,false);
+  add('›',pg+1,false,pg===pages);
+}
+
+document.getElementById('searchInput').addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
+boot();
+</script>
+{% endblock %}

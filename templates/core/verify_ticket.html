@@ -1,0 +1,25 @@
+{% extends "core/base.html" %}{% block title %}Verify Ticket{% endblock %}{% block content %}
+<div class="auth-page"><div class="auth-card" style="text-align:center" id="vtCard">
+<div style="font-size:44px;margin-bottom:16px">⟳</div>
+<h1 style="font-family:var(--fd);font-size:20px;font-weight:700;color:#fff">Verifying Ticket…</h1>
+</div></div>
+{% endblock %}
+{% block extra_js %}<script>
+async function go(){
+  const {data,ok}=await api.get('/api/tickets/verify/{{ number }}/');
+  const c=document.getElementById('vtCard');
+  if(!ok){c.innerHTML='<div style="font-size:48px;color:var(--red)">✕</div><h1 style="font-family:var(--fd);color:#fff;margin:12px 0">Not Found</h1>'; return;}
+  const col=data.valid?'var(--green)':data.status==='used'?'var(--warn)':'var(--red)';
+  const icon=data.valid?'✓':data.status==='used'?'◉':'✕';
+  const title=data.valid?'Valid Ticket':data.status==='used'?'Already Checked In':'Invalid Ticket';
+  c.innerHTML=`<div style="font-size:48px;color:${col};margin-bottom:14px">${icon}</div><h1 style="font-family:var(--fd);font-size:20px;color:#fff;margin-bottom:16px">${title}</h1>
+  <div style="text-align:left;background:var(--card2);border-radius:var(--rm);padding:16px;font-size:14px;display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Event</span><strong style="color:#fff">${data.event_title}</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Attendee</span><strong style="color:#fff">${data.attendee_name}</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Qty</span><strong style="color:#fff">${data.quantity}</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Status</span>${badge(data.status)}</div>
+    ${data.checked_in_at?`<div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Checked In</span><strong style="color:#fff">${fmtDate(data.checked_in_at)}</strong></div>`:''}
+  </div>`;
+}
+go();
+</script>{% endblock %}

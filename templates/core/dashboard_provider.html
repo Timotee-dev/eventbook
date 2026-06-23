@@ -1,0 +1,175 @@
+{% extends "core/base.html" %}{% block title %}Provider Dashboard{% endblock %}{% block content %}
+{% if not user.is_authenticated %}<script>location.href='/login/';</script>{% endif %}
+<div class="container" style="padding:36px 20px 80px">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:32px">
+    <div><h1 style="font-family:var(--fd);font-size:26px;font-weight:700;color:#fff">Provider Dashboard</h1>
+    {% if not user.is_provider_approved %}<p style="color:var(--warn);font-size:13px;margin-top:4px">⚠ Your account is pending admin approval.</p>{% endif %}</div>
+    <button class="btn btn-primary" onclick="tab('create',null)">+ Create Event</button>
+  </div>
+  <div class="dash-layout">
+    <aside class="sidebar">
+      <div class="sb-title">Manage</div>
+      <button class="sb-link active" onclick="tab('overview',this)">📊 Overview</button>
+      <button class="sb-link" onclick="tab('events',this)">📋 My Events</button>
+      <button class="sb-link" onclick="tab('wallet',this)">💳 Wallet</button>
+      <button class="sb-link" onclick="tab('create',this)">➕ Create Event</button>
+    </aside>
+    <div>
+      <!-- OVERVIEW -->
+      <div id="t-overview">
+        <div class="stat-grid" id="statsGrid">
+          <div class="stat-card"><div class="stat-label">Revenue (30d)</div><div class="stat-value" id="stRev">—</div></div>
+          <div class="stat-card"><div class="stat-label">Tickets Sold</div><div class="stat-value" id="stTix">—</div></div>
+          <div class="stat-card"><div class="stat-label">Active Events</div><div class="stat-value" id="stEvs">—</div></div>
+          <div class="stat-card"><div class="stat-label">Wallet Balance</div><div class="stat-value" id="stWal">—</div></div>
+        </div>
+        <h3 style="font-family:var(--fd);font-size:17px;font-weight:600;color:#fff;margin-bottom:14px">Top Events</h3>
+        <div id="topEvs" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+      <!-- EVENTS -->
+      <div id="t-events" class="hidden">
+        <h2 style="font-family:var(--fd);font-size:20px;font-weight:600;color:#fff;margin-bottom:18px">My Events</h2>
+        <div id="myEvList" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+      <!-- WALLET -->
+      <div id="t-wallet" class="hidden">
+        <h2 style="font-family:var(--fd);font-size:20px;font-weight:600;color:#fff;margin-bottom:18px">Wallet & Payouts</h2>
+        <div id="walletPanel"></div>
+      </div>
+      <!-- CREATE -->
+      <div id="t-create" class="hidden">
+        <h2 style="font-family:var(--fd);font-size:20px;font-weight:600;color:#fff;margin-bottom:6px">Create Event</h2>
+        <p style="color:var(--muted);font-size:14px;margin-bottom:24px">Your event will be reviewed before going live.</p>
+        <div class="glass">
+          <div class="err-box hidden" id="createErr"></div>
+          <div class="form-group"><label class="label">Event Title *</label><input type="text" class="input" id="evTitle" placeholder="Lagos Tech Summit 2026"></div>
+          <div class="form-row">
+            <div class="form-group"><label class="label">Category *</label><select class="select" id="evCat"><option value="">Select</option></select></div>
+            <div class="form-group"><label class="label">Base Price (₦)</label><input type="number" class="input" id="evPrice" placeholder="0 = Free" min="0"></div>
+          </div>
+          <div class="form-group"><label class="label">Short Description</label><input type="text" class="input" id="evShort" placeholder="One-line hook"></div>
+          <div class="form-group"><label class="label">Full Description *</label><textarea class="textarea" id="evDesc" style="min-height:120px" placeholder="Tell attendees what to expect…"></textarea></div>
+          <div class="form-group"><label class="label">Venue Name *</label><input type="text" class="input" id="evVenue" placeholder="Eko Convention Centre"></div>
+          <div class="form-row">
+            <div class="form-group"><label class="label">City *</label><input type="text" class="input" id="evCity" placeholder="Lagos"></div>
+            <div class="form-group"><label class="label">State</label><input type="text" class="input" id="evState" placeholder="Lagos State"></div>
+          </div>
+          <div class="form-group"><label class="label">Address</label><input type="text" class="input" id="evAddr" placeholder="Street address"></div>
+          <div class="form-row">
+            <div class="form-group"><label class="label">Start Date & Time *</label><input type="datetime-local" class="input" id="evStart"></div>
+            <div class="form-group"><label class="label">End Date & Time *</label><input type="datetime-local" class="input" id="evEnd"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="label">Capacity *</label><input type="number" class="input" id="evCap" placeholder="200" min="1"></div>
+            <div class="form-group" style="display:flex;align-items:center;gap:8px;padding-top:26px"><input type="checkbox" id="evOnline" style="accent-color:var(--violet);width:16px;height:16px"><label for="evOnline" style="color:var(--muted);font-size:14px">Online event</label></div>
+          </div>
+          <button class="btn btn-primary" id="createBtn" onclick="createEvent()" style="margin-top:6px">Submit for Review →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}<script>
+function tab(name,btn){
+  document.querySelectorAll('[id^="t-"]').forEach(e=>e.classList.add('hidden'));
+  document.getElementById('t-'+name).classList.remove('hidden');
+  document.querySelectorAll('.sb-link').forEach(b=>b.classList.remove('active'));
+  btn?.classList.add('active');
+  loaders[name]?.();
+}
+const loaded={};
+const loaders={overview:loadOverview,events:loadMyEvents,wallet:loadWallet,create:loadCats};
+
+async function loadOverview(){
+  const [{data:a},{data:w}]=await Promise.all([api.get('/api/analytics/provider/'),api.get('/api/payments/wallet/')]);
+  if(a){
+    document.getElementById('stRev').textContent='₦'+(parseFloat(a.total_revenue||0)).toLocaleString('en-NG');
+    document.getElementById('stTix').textContent=a.total_tickets||0;
+    document.getElementById('stEvs').textContent=a.active_events||0;
+  }
+  if(w) document.getElementById('stWal').textContent='₦'+(parseFloat(w.wallet_balance||0)).toLocaleString('en-NG');
+  const top=a?.top_events||[];
+  document.getElementById('topEvs').innerHTML=top.length?top.map(e=>`
+    <div class="list-item"><div class="list-item-info"><div class="list-item-title">${e.title}</div><div class="list-item-sub">${e.bookings_count||0} bookings · ₦${parseFloat(e.revenue||0).toLocaleString()} revenue</div></div><a href="/events/${e.slug}/" class="btn btn-outline btn-sm">View</a></div>`).join('')
+    :'<div class="empty"><div class="empty-icon">◈</div><h3>No events yet</h3></div>';
+}
+
+async function loadMyEvents(){
+  if(loaded.ev)return; loaded.ev=true;
+  const el=document.getElementById('myEvList');
+  el.innerHTML='<div class="skeleton" style="height:68px;border-radius:var(--rm)"></div>'.repeat(3);
+  const {data}=await api.get('/api/events/mine/');
+  el.innerHTML=(data?.results||[]).map(e=>`
+    <div class="list-item"><div class="list-item-info"><div class="list-item-title">${e.title}</div><div class="list-item-sub">${fmtDate(e.start_datetime)} · ${e.city}</div></div><div class="list-item-actions">${badge(e.status)}<a href="/events/${e.slug}/" class="btn btn-outline btn-sm">View</a></div></div>`).join('')
+    ||'<div class="empty"><div class="empty-icon">◈</div><h3>No events yet</h3></div>';
+}
+
+async function loadWallet(){
+  const [{data:w},{data:p}]=await Promise.all([api.get('/api/payments/wallet/'),api.get('/api/payments/payouts/')]);
+  document.getElementById('walletPanel').innerHTML=`
+  <div class="glass" style="margin-bottom:20px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;text-align:center;margin-bottom:20px">
+      <div><div class="stat-label">Available</div><div style="font-family:var(--fd);font-size:24px;font-weight:700;color:#fff">₦${parseFloat(w?.balance||0).toLocaleString('en-NG')}</div></div>
+      <div><div class="stat-label">Total Earned</div><div style="font-family:var(--fd);font-size:24px;font-weight:700;color:var(--lav)">₦${parseFloat(w?.total_earned||0).toLocaleString('en-NG')}</div></div>
+      <div><div class="stat-label">Withdrawn</div><div style="font-family:var(--fd);font-size:24px;font-weight:700;color:var(--muted)">₦${parseFloat(w?.total_withdrawn||0).toLocaleString('en-NG')}</div></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <input type="number" class="input" id="payAmt" placeholder="Min ₦1,000" style="flex:1">
+      <button class="btn btn-primary" onclick="doPayout()">Request Payout</button>
+    </div>
+    <p style="font-size:12px;color:var(--dim);margin-top:8px">Requires saved bank account. Add via admin panel or profile settings.</p>
+  </div>
+  <h3 style="font-family:var(--fd);font-size:16px;color:#fff;margin-bottom:12px">Payout History</h3>
+  ${(p?.results||[]).map(po=>`<div class="list-item" style="margin-bottom:8px"><div class="list-item-info"><div class="list-item-title">₦${parseFloat(po.amount).toLocaleString()}</div><div class="list-item-sub">${fmtDate(po.created_at)}</div></div>${badge(po.status)}</div>`).join('')||'<div class="empty" style="padding:24px"><p>No payouts yet.</p></div>'}`;
+}
+
+async function doPayout(){
+  const amt=parseFloat(document.getElementById('payAmt').value);
+  if(!amt||amt<1000){flash('Minimum payout is ₦1,000.','error');return;}
+  const {data,ok}=await api.post('/api/payments/payout/',{amount:amt});
+  if(!ok){flash(data?.error||'Failed','error');return;}
+  flash(data?.message||'Payout requested!','success');
+  loaded.wallet=false; loadWallet();
+}
+
+async function loadCats(){
+  if(loaded.cats)return; loaded.cats=true;
+  const {data}=await api.get('/api/events/categories/');
+  const sel=document.getElementById('evCat');
+  (data?.results||data||[]).forEach(c=>{const o=document.createElement('option');o.value=c.id||c.slug;o.textContent=c.name;sel.appendChild(o);});
+}
+
+async function createEvent(){
+  const btn=document.getElementById('createBtn');
+  const body={
+    title:document.getElementById('evTitle').value.trim(),
+    category_id:document.getElementById('evCat').value,
+    base_price:parseFloat(document.getElementById('evPrice').value||0),
+    short_desc:document.getElementById('evShort').value.trim(),
+    description:document.getElementById('evDesc').value.trim(),
+    venue_name:document.getElementById('evVenue').value.trim(),
+    city:document.getElementById('evCity').value.trim(),
+    state:document.getElementById('evState').value.trim(),
+    address:document.getElementById('evAddr').value.trim(),
+    start_datetime:document.getElementById('evStart').value,
+    end_datetime:document.getElementById('evEnd').value,
+    capacity:parseInt(document.getElementById('evCap').value||0),
+    is_online:document.getElementById('evOnline').checked,
+  };
+  if(!body.title||!body.description||!body.venue_name||!body.city||!body.start_datetime||!body.end_datetime||!body.capacity){
+    document.getElementById('createErr').textContent='Please fill all required fields.';
+    document.getElementById('createErr').classList.remove('hidden');return;
+  }
+  setLoading(btn,true);
+  const {data,ok}=await api.post('/api/events/create/',body);
+  setLoading(btn,false);
+  if(!ok){document.getElementById('createErr').textContent=data?.error||'Failed';document.getElementById('createErr').classList.remove('hidden');return;}
+  flash('Event submitted for review!','success');
+  document.getElementById('createErr').classList.add('hidden');
+  loaded.ev=false;
+  tab('events',document.querySelector('.sb-link:nth-child(3)'));
+}
+
+loadOverview();
+</script>{% endblock %}

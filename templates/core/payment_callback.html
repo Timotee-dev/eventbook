@@ -1,0 +1,24 @@
+{% extends "core/base.html" %}{% block title %}Payment{% endblock %}{% block content %}
+<div class="auth-page"><div class="auth-card" style="text-align:center" id="payCard">
+<div style="font-size:44px;margin-bottom:16px">⟳</div>
+<h1 style="font-family:var(--fd);font-size:22px;font-weight:700;color:#fff">Confirming Payment…</h1>
+<p style="color:var(--muted);margin-top:8px">Please wait while we verify your transaction.</p>
+</div></div>
+{% endblock %}
+{% block extra_js %}<script>
+async function confirm(){
+  const p=new URLSearchParams(location.search);
+  const ref=p.get('reference')||p.get('trxref');
+  if(!ref){setResult('✕','var(--red)','No reference found','<a href="/dashboard/" class="btn btn-outline" style="margin-top:14px">Dashboard</a>');return;}
+  const {data,ok}=await api.get(`/api/payments/verify/${ref}/`);
+  if(data?.status==='success'||data?.already_processed){
+    setResult('✓','var(--green)','Payment Confirmed!','<p style="color:var(--muted);margin:10px 0">Your ticket has been generated.</p><a href="/my-tickets/" class="btn btn-primary" style="margin-top:8px">View My Tickets →</a>');
+  } else {
+    setResult('✕','var(--red)','Payment Not Completed',`<p style="color:var(--muted);margin:10px 0">${data?.error||'The payment was not completed.'}</p><a href="/dashboard/" class="btn btn-outline" style="margin-top:8px">Dashboard</a>`);
+  }
+}
+function setResult(icon,color,title,body){
+  document.getElementById('payCard').innerHTML=`<div style="font-size:56px;color:${color};margin-bottom:16px">${icon}</div><h1 style="font-family:var(--fd);font-size:22px;font-weight:700;color:#fff">${title}</h1>${body}`;
+}
+{% if user.is_authenticated %}confirm();{% else %}location.href='/login/?next='+encodeURIComponent(location.pathname+location.search);{% endif %}
+</script>{% endblock %}

@@ -1,0 +1,16 @@
+{{ SITE_NAME }} — Booking Confirmed ✓
+
+Hi {{ booking.customer.first_name|default:booking.customer.username }},
+
+Your booking is confirmed!
+
+Event:       {{ event.title }}
+Booking Ref: {{ booking.reference }}
+Venue:       {{ event.venue_name }}, {{ event.city }}
+Date:        {{ event.start_datetime|date:"D d M Y, g:i A" }}
+Qty:         {{ booking.quantity }}
+Total:       ₦{{ booking.total }}
+
+View your e-ticket: {{ FRONTEND_URL }}/my-tickets/
+
+— {{ SITE_NAME }} Team

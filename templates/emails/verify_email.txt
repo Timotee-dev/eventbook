@@ -1,0 +1,13 @@
+{{ SITE_NAME }} — Verify your email
+
+Hi {{ user.first_name|default:user.username }},
+
+Thanks for joining {{ SITE_NAME }}! Please verify your email address by visiting:
+
+{{ url }}
+
+This link expires in 24 hours.
+
+If you didn't create an account, ignore this email.
+
+— {{ SITE_NAME }} Team

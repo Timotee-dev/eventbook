@@ -1,0 +1,28 @@
+{% extends "core/base.html" %}{% block title %}My Tickets{% endblock %}{% block content %}
+{% if not user.is_authenticated %}<script>location.href='/login/';</script>{% endif %}
+<div class="container" style="padding:36px 20px 80px">
+  <h1 style="font-family:var(--fd);font-size:26px;font-weight:700;color:#fff;margin-bottom:24px">My Tickets</h1>
+  <div id="tList" style="display:flex;flex-direction:column;gap:16px"><div class="skeleton" style="height:90px;border-radius:var(--rm)"></div><div class="skeleton" style="height:90px;border-radius:var(--rm)"></div></div>
+</div>
+{% endblock %}
+{% block extra_js %}<script>
+async function boot(){
+  const {data}=await api.get('/api/tickets/mine/');
+  const arr=data?.results||[];
+  document.getElementById('tList').innerHTML=arr.length?arr.map(t=>`
+    <div class="ticket">
+      <div class="ticket-main">
+        <div class="ticket-title">${t.event_title}</div>
+        <div class="ticket-meta">${fmtDate(t.event_start)} · ${t.venue}, ${t.city}<br>${t.ticket_type} · Qty: ${t.quantity}<br>${badge(t.status)}</div>
+        <div class="ticket-num">${t.number}</div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          ${t.pdf_file?`<a href="${t.pdf_file}" target="_blank" class="btn btn-outline btn-sm">⬇ Download PDF</a>`:''}
+          <a href="/verify-ticket/${t.number}/" class="btn btn-ghost btn-sm">Verify</a>
+        </div>
+      </div>
+      ${t.qr_image?`<div class="ticket-qr"><img src="${t.qr_image}" alt="QR Code"></div>`:''}
+    </div>`).join('')
+    :'<div class="empty"><div class="empty-icon">🎟</div><h3>No tickets yet</h3><p>Book and pay for an event to receive your e-ticket here.</p><a href="/events/" class="btn btn-primary" style="margin-top:12px">Browse Events →</a></div>';
+}
+boot();
+</script>{% endblock %}

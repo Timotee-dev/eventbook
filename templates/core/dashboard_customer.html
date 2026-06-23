@@ -1,0 +1,114 @@
+{% extends "core/base.html" %}{% block title %}My Dashboard{% endblock %}{% block content %}
+{% if not user.is_authenticated %}<script>location.href='/login/';</script>{% endif %}
+<div class="container" style="padding:36px 20px 80px">
+  <h1 style="font-family:var(--fd);font-size:26px;font-weight:700;color:#fff;margin-bottom:4px">Hey, {{ user.first_name|default:user.username }} 👋</h1>
+  <p style="color:var(--muted);margin-bottom:32px">Your bookings, tickets and notifications.</p>
+  <div class="dash-layout">
+    <aside class="sidebar">
+      <div class="sb-title">My Account</div>
+      <button class="sb-link active" onclick="tab('bookings',this)">📅 Bookings</button>
+      <button class="sb-link" onclick="tab('tickets',this)">🎟 Tickets</button>
+      <button class="sb-link" onclick="tab('notifications',this)">🔔 Notifications</button>
+    </aside>
+    <div>
+      <div id="t-bookings">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+          <h2 style="font-family:var(--fd);font-size:20px;font-weight:600;color:#fff">My Bookings</h2>
+          <div class="pills" style="margin:0">
+            <button class="pill active" onclick="filterBook('',this)">All</button>
+            <button class="pill" onclick="filterBook('confirmed',this)">Confirmed</button>
+            <button class="pill" onclick="filterBook('pending',this)">Pending</button>
+            <button class="pill" onclick="filterBook('cancelled',this)">Cancelled</button>
+          </div>
+        </div>
+        <div id="bookingsList" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+      <div id="t-tickets" class="hidden">
+        <h2 style="font-family:var(--fd);font-size:20px;font-weight:600;color:#fff;margin-bottom:18px">My Tickets</h2>
+        <div id="ticketsList" style="display:flex;flex-direction:column;gap:14px"></div>
+      </div>
+      <div id="t-notifications" class="hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <h2 style="font-family:var(--fd);font-size:20px;font-weight:600;color:#fff">Notifications</h2>
+          <button class="btn btn-ghost btn-sm" onclick="markAll()">Mark all read</button>
+        </div>
+        <div id="notifList" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}<script>
+function tab(name,btn){
+  document.querySelectorAll('[id^="t-"]').forEach(e=>e.classList.add('hidden'));
+  document.getElementById('t-'+name).classList.remove('hidden');
+  document.querySelectorAll('.sb-link').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  loaders[name]?.();
+}
+const loaded={};
+const loaders={bookings:()=>loadBookings(),tickets:loadTickets,notifications:loadNotifs};
+
+async function loadBookings(status=''){
+  const el=document.getElementById('bookingsList');
+  el.innerHTML='<div class="skeleton" style="height:68px;border-radius:var(--rm)"></div>'.repeat(3);
+  const {data}=await api.get('/api/bookings/mine/'+(status?'?status='+status:''));
+  const arr=data?.results||[];
+  el.innerHTML=arr.length?arr.map(b=>`
+    <div class="list-item">
+      <div class="list-item-info">
+        <div class="list-item-title">${b.event_title}</div>
+        <div class="list-item-sub">${fmtDate(b.event_start)} · ${b.quantity} ticket${b.quantity>1?'s':''} · ₦${parseFloat(b.total).toLocaleString()}</div>
+      </div>
+      <div class="list-item-actions">
+        ${badge(b.status)}
+        ${b.ticket_number?`<a href="/verify-ticket/${b.ticket_number}/" class="btn btn-outline btn-sm">Ticket</a>`:''}
+      </div>
+    </div>`).join('')
+    :'<div class="empty"><div class="empty-icon">📅</div><h3>No bookings yet</h3><p>Browse events and book your first experience.</p><a href="/events/" class="btn btn-primary" style="margin-top:12px">Browse Events →</a></div>';
+}
+
+function filterBook(s,pill){document.querySelectorAll('.pills .pill').forEach(p=>p.classList.remove('active'));pill.classList.add('active');loadBookings(s);}
+
+async function loadTickets(){
+  if(loaded.tickets)return; loaded.tickets=true;
+  const el=document.getElementById('ticketsList');
+  el.innerHTML='<div class="skeleton" style="height:88px;border-radius:var(--rm)"></div>'.repeat(3);
+  const {data}=await api.get('/api/tickets/mine/');
+  const arr=data?.results||[];
+  el.innerHTML=arr.length?arr.map(t=>`
+    <div class="ticket">
+      <div class="ticket-main">
+        <div class="ticket-title">${t.event_title}</div>
+        <div class="ticket-meta">${fmtDate(t.event_start)} · ${t.venue}, ${t.city}<br>${badge(t.status)}</div>
+        <div class="ticket-num">${t.number}</div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          ${t.pdf_file?`<a href="${t.pdf_file}" target="_blank" class="btn btn-outline btn-sm">⬇ PDF</a>`:''}
+          <a href="/verify-ticket/${t.number}/" class="btn btn-ghost btn-sm">Verify</a>
+        </div>
+      </div>
+      ${t.qr_image?`<div class="ticket-qr"><img src="${t.qr_image}" alt="QR"></div>`:''}
+    </div>`).join('')
+    :'<div class="empty"><div class="empty-icon">🎟</div><h3>No tickets yet</h3><p>Book and pay for an event to receive your ticket here.</p></div>';
+}
+
+async function loadNotifs(){
+  if(loaded.notifs)return; loaded.notifs=true;
+  const el=document.getElementById('notifList');
+  const {data}=await api.get('/api/notifications/');
+  const arr=data?.results||[];
+  el.innerHTML=arr.length?arr.map(n=>`
+    <div style="padding:13px 16px;background:var(--card);border:1px solid ${n.is_read?'var(--border)':'rgba(124,58,237,.3)'};border-radius:var(--rm);cursor:pointer" onclick="markOne(${n.id},this)">
+      ${!n.is_read?'<div style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--violet);margin-right:8px"></div>':''}
+      <strong style="font-size:14px;color:#fff">${n.title}</strong>
+      <p style="font-size:13px;color:var(--muted);margin-top:3px">${n.message}</p>
+      <span style="font-size:11px;color:var(--dim)">${fmtDate(n.created_at)}</span>
+    </div>`).join('')
+    :'<div class="empty"><div class="empty-icon">🔔</div><h3>All caught up!</h3></div>';
+}
+
+async function markOne(id,el){await api.post(`/api/notifications/${id}/read/`);el.style.borderColor='var(--border)';el.querySelector('[style*="border-radius:50%"]')?.remove();}
+async function markAll(){await api.post('/api/notifications/mark-all/');loaded.notifs=false;loadNotifs();}
+
+loadBookings();
+</script>{% endblock %}

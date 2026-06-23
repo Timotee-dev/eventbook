@@ -1,0 +1,58 @@
+{% extends "core/base.html" %}
+{% block title %}Create Account{% endblock %}
+{% block content %}
+<div class="auth-page">
+  <div class="auth-card" style="max-width:480px">
+    <a href="/" class="nav-logo" style="margin-bottom:24px;display:inline-flex"><span class="logo-mark">◈</span> EventBook</a>
+    <h1>Create Account</h1>
+    <p class="auth-sub">Join thousands of event lovers across Nigeria.</p>
+    <div class="err-box hidden" id="errBox"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;padding:5px;background:var(--card2);border-radius:var(--rm)">
+      <button class="btn btn-primary btn-sm" id="rCust" onclick="setRole('customer')">Book Events</button>
+      <button class="btn btn-ghost btn-sm" id="rProv" onclick="setRole('provider')">Host Events</button>
+    </div>
+    <input type="hidden" id="role" value="customer">
+    <div class="form-row">
+      <div class="form-group"><label class="label">First Name</label><input type="text" class="input" id="fn" placeholder="Ada"></div>
+      <div class="form-group"><label class="label">Last Name</label><input type="text" class="input" id="ln" placeholder="Okonkwo"></div>
+    </div>
+    <div class="form-group"><label class="label">Username</label><input type="text" class="input" id="un" placeholder="ada_events"></div>
+    <div class="form-group"><label class="label">Email</label><input type="email" class="input" id="em" placeholder="ada@example.com"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="label">Password</label><input type="password" class="input" id="pw1" placeholder="8+ chars"></div>
+      <div class="form-group"><label class="label">Confirm</label><input type="password" class="input" id="pw2" placeholder="Same again"></div>
+    </div>
+    <button class="btn btn-primary btn-full" id="regBtn" onclick="doRegister()">Create Account</button>
+    <div class="auth-footer">Already have an account? <a href="/login/">Sign in →</a></div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+{% if user.is_authenticated %}location.href='/dashboard/';{% endif %}
+const rp = new URLSearchParams(location.search).get('role');
+if(rp==='provider') setRole('provider');
+function setRole(r){
+  document.getElementById('role').value=r;
+  document.getElementById('rCust').className='btn btn-sm'+(r==='customer'?' btn-primary':' btn-ghost');
+  document.getElementById('rProv').className='btn btn-sm'+(r==='provider'?' btn-primary':' btn-ghost');
+}
+async function doRegister(){
+  const pw1=document.getElementById('pw1').value, pw2=document.getElementById('pw2').value;
+  if(pw1!==pw2){showErr('Passwords do not match.');return;}
+  const btn=document.getElementById('regBtn');
+  setLoading(btn,true);
+  const {data,ok}=await api.post('/api/auth/register/',{
+    email:document.getElementById('em').value.trim(),
+    username:document.getElementById('un').value.trim(),
+    first_name:document.getElementById('fn').value.trim(),
+    last_name:document.getElementById('ln').value.trim(),
+    password:pw1,role:document.getElementById('role').value,
+  });
+  setLoading(btn,false);
+  if(!ok){showErr(data?.error||'Registration failed');return;}
+  location.href='/login/?registered=1';
+}
+function showErr(m){const e=document.getElementById('errBox');e.textContent=m;e.classList.remove('hidden');}
+</script>
+{% endblock %}

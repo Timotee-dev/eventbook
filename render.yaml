@@ -1,0 +1,47 @@
+# ── Render deployment config ──
+# Deploy with: render.com → New → Web Service → connect your GitHub repo
+# Render auto-reads this file.
+
+services:
+  - type: web
+    name: eventbook
+    env: python
+    plan: free              # change to starter/standard for production
+    region: oregon          # closest to Nigeria with free plan
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile -"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true          # Render auto-generates a secure key
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: DJANGO_SETTINGS_MODULE
+        value: "config.settings"
+      - key: FRONTEND_URL
+        value: "https://eventbook.onrender.com"   # change to your actual URL
+      - key: EMAIL_BACKEND
+        value: "django.core.mail.backends.smtp.EmailBackend"
+      - key: TIME_ZONE
+        value: "Africa/Lagos"
+      - key: PLATFORM_FEE_PERCENT
+        value: "5"
+      # ── Set these manually in Render dashboard ──
+      # PAYSTACK_SECRET_KEY  → sk_live_...
+      # PAYSTACK_PUBLIC_KEY  → pk_live_...
+      # EMAIL_HOST_USER      → your@gmail.com
+      # EMAIL_HOST_PASSWORD  → gmail app password
+      # DEFAULT_FROM_EMAIL   → EventBook <noreply@yourdomain.com>
+      - key: DATABASE_URL
+        fromDatabase:
+          name: eventbook-db
+          property: connectionString
+
+databases:
+  - name: eventbook-db
+    plan: free
+    databaseName: eventbook
+    user: eventbook

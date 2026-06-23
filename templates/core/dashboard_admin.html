@@ -1,0 +1,24 @@
+{% extends "core/base.html" %}{% block title %}Admin Dashboard{% endblock %}{% block content %}
+{% if not user.is_authenticated %}<script>location.href='/login/';</script>{% endif %}
+<div class="container" style="padding:36px 20px 80px">
+  <h1 style="font-family:var(--fd);font-size:26px;font-weight:700;color:#fff;margin-bottom:4px">Admin Dashboard</h1>
+  <p style="color:var(--muted);margin-bottom:32px">Platform-wide overview. <a href="/admin/">Django Admin →</a> for full control.</p>
+  <div class="stat-grid" id="aStats"><div class="skeleton stat-card" style="height:80px"></div><div class="skeleton stat-card" style="height:80px"></div><div class="skeleton stat-card" style="height:80px"></div><div class="skeleton stat-card" style="height:80px"></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex-wrap:wrap">
+    <div class="glass"><h3 style="font-family:var(--fd);font-size:16px;color:#fff;margin-bottom:6px">Pending Events</h3><p style="color:var(--muted);font-size:13px;margin-bottom:14px">Awaiting moderation</p><div id="pendingEv"></div><a href="/admin/events/event/?status__exact=pending" target="_blank" class="btn btn-outline btn-sm" style="margin-top:12px">Manage in Admin →</a></div>
+    <div class="glass"><h3 style="font-family:var(--fd);font-size:16px;color:#fff;margin-bottom:6px">Provider Approvals</h3><p style="color:var(--muted);font-size:13px;margin-bottom:14px">Unapproved providers</p><div id="pendingProv"></div><a href="/admin/accounts/user/?role__exact=provider&is_provider_approved__exact=0" target="_blank" class="btn btn-outline btn-sm" style="margin-top:12px">Approve in Admin →</a></div>
+  </div>
+</div>
+<style>@media(max-width:600px){.container>div:last-child{grid-template-columns:1fr!important}}</style>
+{% endblock %}
+{% block extra_js %}<script>
+async function boot(){
+  const {data}=await api.get('/api/analytics/admin/');
+  if(!data)return;
+  const stats=[['Total Users',data.total_users],['Platform Revenue','₦'+parseFloat(data.platform_revenue||0).toLocaleString('en-NG')],['Pending Events',data.pending_events],['Pending Providers',data.pending_providers]];
+  document.getElementById('aStats').innerHTML=stats.map(([l,v])=>`<div class="stat-card"><div class="stat-label">${l}</div><div class="stat-value">${v}</div></div>`).join('');
+  document.getElementById('pendingEv').innerHTML=data.pending_events?`<p style="font-size:28px;font-weight:700;font-family:var(--fd);color:var(--warn)">${data.pending_events} event${data.pending_events!==1?'s':''} waiting</p>`:'<p style="color:var(--muted)">All clear ✓</p>';
+  document.getElementById('pendingProv').innerHTML=data.pending_providers?`<p style="font-size:28px;font-weight:700;font-family:var(--fd);color:var(--warn)">${data.pending_providers} provider${data.pending_providers!==1?'s':''} waiting</p>`:'<p style="color:var(--muted)">All clear ✓</p>';
+}
+boot();
+</script>{% endblock %}

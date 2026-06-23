@@ -1,0 +1,13 @@
+{{ SITE_NAME }} — Payment Receipt
+
+Hi {{ payment.booking.customer.first_name|default:payment.booking.customer.username }},
+
+Payment Receipt: {{ payment.reference }}
+
+Event:    {{ booking.event.title }}
+Booking:  {{ booking.reference }}
+Paid:     ₦{{ payment.amount }}
+Channel:  {{ payment.channel|title|default:"Card" }}
+Status:   Paid ✓
+
+— {{ SITE_NAME }} Team

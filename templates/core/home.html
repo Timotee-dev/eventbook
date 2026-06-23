@@ -1,0 +1,100 @@
+{% extends "core/base.html" %}
+{% block title %}EventBook — Book Events Across Nigeria{% endblock %}
+{% block content %}
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-eye">◈ Nigeria's Event Platform</div>
+    <h1>Find events that<br>move <em>you</em></h1>
+    <p>Concerts, tech summits, workshops and experiences across Lagos, Abuja, Port Harcourt and beyond.</p>
+    <div class="search-wrap">
+      <input type="text" id="heroSearch" placeholder="Search events, artists, venues…">
+      <button onclick="doSearch()">Search</button>
+    </div>
+    <div class="hero-ctas">
+      <a href="/events/" class="btn btn-outline btn-lg">Browse All Events</a>
+      <a href="/register/?role=provider" class="btn btn-outline btn-lg">Host an Event</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><strong id="sTotal">—</strong><span>Live Events</span></div>
+      <div class="hero-stat"><strong>8+</strong><span>Cities</span></div>
+      <div class="hero-stat"><strong id="sCats">—</strong><span>Categories</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="pills" id="catPills"><button class="pill active" data-slug="">All</button></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px">
+      <div><div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--lav);margin-bottom:6px">Events</div><h2 style="font-family:var(--fd);font-size:clamp(22px,3vw,36px);font-weight:700;color:#fff">Happening Now</h2></div>
+      <a href="/events/" class="btn btn-outline btn-sm">View all →</a>
+    </div>
+    <div class="grid" id="homeGrid"></div>
+  </div>
+</section>
+
+<section class="section" style="background:rgba(124,58,237,.04);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div class="container" style="text-align:center">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--lav);margin-bottom:12px">For Organisers</div>
+    <h2 style="font-family:var(--fd);font-size:clamp(26px,4vw,44px);font-weight:700;color:#fff;margin-bottom:12px">Sell tickets. Keep <em style="color:var(--lav);font-style:normal">95%</em>.</h2>
+    <p style="color:var(--muted);max-width:460px;margin:0 auto 32px;font-size:16px">Create events, set ticket tiers, manage attendees, receive payouts directly to your Nigerian bank. Just 5% platform fee.</p>
+    <a href="/register/?role=provider" class="btn btn-primary btn-lg">Start Hosting Free →</a>
+  </div>
+</section>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+async function boot() {
+  const [{data:cats},{data:events}] = await Promise.all([
+    api.get('/api/events/categories/'),
+    api.get('/api/events/?page_size=9'),
+  ]);
+
+  // Categories
+  const pills = document.getElementById('catPills');
+  const catArr = cats?.results || cats || [];
+  document.getElementById('sCats').textContent = catArr.length + '+';
+  catArr.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className='pill'; btn.dataset.slug=c.slug;
+    btn.textContent=`${c.icon||''} ${c.name}`;
+    btn.onclick = () => { pills.querySelectorAll('.pill').forEach(p=>p.classList.remove('active')); btn.classList.add('active'); loadEvents(c.slug); };
+    pills.appendChild(btn);
+  });
+
+  // Events
+  const evArr = events?.results || [];
+  document.getElementById('sTotal').textContent = (events?.count||0) + '+';
+  renderEvents(evArr);
+
+  pills.querySelector('[data-slug=""]').onclick = () => {
+    pills.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
+    pills.querySelector('[data-slug=""]').classList.add('active');
+    loadEvents('');
+  };
+}
+
+async function loadEvents(cat) {
+  const grid = document.getElementById('homeGrid');
+  grid.innerHTML = skeletons(9);
+  const url = `/api/events/?page_size=9${cat?'&category='+cat:''}`;
+  const {data} = await api.get(url);
+  renderEvents(data?.results||[]);
+}
+
+function renderEvents(arr) {
+  const grid = document.getElementById('homeGrid');
+  grid.innerHTML = arr.length ? arr.map(renderCard).join('') : '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">◈</div><h3>No events yet</h3><p>Check back soon.</p></div>';
+  initChips();
+}
+
+function doSearch() {
+  const q = document.getElementById('heroSearch').value.trim();
+  location.href = q ? `/events/?q=${encodeURIComponent(q)}` : '/events/';
+}
+document.getElementById('heroSearch').addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(); });
+boot();
+</script>
+{% endblock %}

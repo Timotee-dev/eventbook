@@ -1,0 +1,18 @@
+{% extends "core/base.html" %}{% block title %}Verify Email{% endblock %}{% block content %}
+<div class="auth-page"><div class="auth-card" style="text-align:center">
+{% if success %}<div style="font-size:56px;margin-bottom:20px;color:var(--green)">✓</div><h1 style="font-family:var(--fd);font-size:22px;font-weight:700;color:#fff">Email Verified!</h1><p style="color:var(--muted);margin:10px 0 24px">Redirecting to sign in…</p><script>setTimeout(()=>location.href='/login/',2000);</script>
+{% elif error %}<div style="font-size:56px;margin-bottom:20px;color:var(--red)">✕</div><h1 style="font-family:var(--fd);font-size:22px;font-weight:700;color:#fff">Verification Failed</h1><p style="color:var(--muted);margin:10px 0 24px">{{ error }}</p><a href="/register/" class="btn btn-outline">Register Again</a>
+{% else %}
+<div style="font-size:56px;margin-bottom:20px">⟳</div><h1 style="font-family:var(--fd);font-size:22px;font-weight:700;color:#fff">Verifying…</h1>
+<script>
+async function go(){
+  const {data,ok}=await api.get('/api/auth/verify-email/{{ token }}/');
+  document.querySelector('.auth-card').innerHTML=ok
+    ?'<div style="font-size:56px;color:var(--green)">✓</div><h1 style="font-family:var(--fd);color:#fff;margin:12px 0">Verified!</h1><p style="color:var(--muted)">Redirecting…</p>'
+    :`<div style="font-size:56px;color:var(--red)">✕</div><h1 style="font-family:var(--fd);color:#fff;margin:12px 0">Failed</h1><p style="color:var(--muted)">${data?.error||'Invalid link'}</p><a href="/register/" class="btn btn-outline" style="margin-top:14px">Register Again</a>`;
+  if(ok) setTimeout(()=>location.href='/login/',2000);
+}
+go();
+</script>
+{% endif %}
+</div></div>{% endblock %}
