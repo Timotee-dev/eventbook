@@ -23,8 +23,17 @@ def env_bool(key, default=False):
 SECRET_KEY = env('SECRET_KEY', 'django-insecure-eventbook-change-in-production-xyz123')
 DEBUG = env_bool('DEBUG', True)
 
-# ── Allow all hosts — handles any Render URL automatically ──
+# ── Allow all hosts ──
 ALLOWED_HOSTS = ['*']
+
+# ── CSRF fix for Render ──
+CSRF_TRUSTED_ORIGINS = [
+    'https://eventbook-awii.onrender.com',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
 
 SITE_NAME = env('SITE_NAME', 'EventBook')
 FRONTEND_URL = env('FRONTEND_URL', 'http://localhost:8000')
@@ -76,7 +85,7 @@ TEMPLATES = [{
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# ── Database: SQLite by default, Postgres on Render ──
+# ── Database: SQLite locally, Postgres on Render ──
 DATABASE_URL = env('DATABASE_URL', '')
 if DATABASE_URL:
     import urllib.parse as up
@@ -88,6 +97,7 @@ if DATABASE_URL:
         'PASSWORD': url.password,
         'HOST': url.hostname,
         'PORT': url.port or 5432,
+        'OPTIONS': {'sslmode': 'require'},
     }}
 else:
     DATABASES = {'default': {
